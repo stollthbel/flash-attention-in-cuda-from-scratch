@@ -492,8 +492,37 @@ __global__ void flash_attention_kernel(const float* q, const float* k, const flo
     }
 }
 
-# Step 24 - flash_attention_launcher (not yet solved)
-# TODO: implement
+# Step 24 - flash_attention_launcher
+void flash_attention_launcher(const float* d_q, const float* d_k, const float* d_v,
+                              float* d_out, int seq_len, int head_dim,
+                              int tile_q, int tile_k) {
+    int threads = 128;
+    int blocks = (seq_len + tile_q - 1) / tile_q;
+
+    size_t smem =
+        sizeof(float) * (
+            tile_q * head_dim + // Q title
+            tile_k * head_dim + // K title
+            tile_k * head_dim + // V tile
+            tile_q * tile_k +   // score/probability tile
+            tile_q * head_dim        +   // row max
+            4* tile_q              // row sum
+        );
+
+    float scale = 1.0f / sqrtf((float)head_dim);
+
+    flash_attention_kernel<<<blocks, threads, smem>>>(
+        d_q,
+        d_k,
+        d_v,
+        d_out,
+        seq_len,
+        head_dim,
+        tile_q,
+        tile_k,
+        scale
+    );
+}
 
 # Step 25 - causal_mask (not yet solved)
 # TODO: implement
